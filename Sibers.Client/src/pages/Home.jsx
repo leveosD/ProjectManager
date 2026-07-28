@@ -6,7 +6,7 @@ const Home = () => {
 
   return (
     <div className="card home-card">
-      <h1>Welcome to Sibers Project Management</h1>
+      <h1>Welcome to Project Management</h1>
       <p className="home-subtitle">
         Manage your projects, employees, and tasks efficiently in one place.
       </p>

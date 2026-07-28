@@ -8,7 +8,9 @@ import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
 import ProjectWizard from './pages/ProjectWizard';
 import Tasks from './pages/Tasks';
+import TaskDetails from './pages/TaskDetails';
 import TaskEdit from './pages/TaskEdit';
+import MyTasks from './pages/MyTasks';
 import Employees from './pages/Employees';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -82,10 +84,26 @@ const App = () => {
               }
             />
             <Route
+              path="/tasks/:id"
+              element={
+                <PrivateRoute>
+                  <TaskDetails />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/tasks/:id/edit"
               element={
                 <PrivateRoute allowedRoles={['Director', 'ProjectManager']}>
                   <TaskEdit />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/my-tasks"
+              element={
+                <PrivateRoute>
+                  <MyTasks />
                 </PrivateRoute>
               }
             />

@@ -1,0 +1,70 @@
+.task-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.status-select {
+  width: auto;
+  min-width: 150px;
+  padding: 0.45rem;
+  font-size: 0.95rem;
+  background-color: #fffdf9;
+}
+
+.status-select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.task-comment {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.member-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.member-list li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.member-list li:last-child {
+  border-bottom: none;
+}
+
+.member-email {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.details-grid .card p {
+  margin-bottom: 0.75rem;
+}
+
+.details-grid .card a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.details-grid .card a:hover {
+  text-decoration: underline;
+}
+
+.details-grid .card .btn {
+  color: #fff;
+}

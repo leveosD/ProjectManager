@@ -27,6 +27,13 @@
   margin: 0;
 }
 
+.section-header .btn,
+.section-header .btn:link,
+.section-header .btn:visited {
+  flex-shrink: 0;
+  color: #fff;
+}
+
 .member-list,
 .document-list {
   list-style: none;

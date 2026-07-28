@@ -277,24 +277,9 @@ const Tasks = () => {
                     </select>
                   </td>
                   <td>
-                    <div className="task-actions">
-                      {(isDirector || isProjectManager) && (
-                        <>
-                          <Link to={`/tasks/${task.id}/edit`} className="btn">
-                            Edit
-                          </Link>
-                          {isDirector && (
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              onClick={() => handleDelete(task.id)}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    <Link to={`/tasks/${task.id}`} className="btn">
+                      Open
+                    </Link>
                   </td>
                 </tr>
               ))

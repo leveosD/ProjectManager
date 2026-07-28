@@ -162,7 +162,7 @@ body {
 
 .btn-primary {
   background-color: var(--primary);
-  color: #3e2c1c;
+  color: #fff;
 }
 
 .btn-primary:hover {
