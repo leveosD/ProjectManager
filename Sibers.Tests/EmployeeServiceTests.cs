@@ -1,0 +1,169 @@
+using Moq;
+using Sibers.Core.DTOs;
+using Sibers.Core.Entities;
+using Sibers.Core.Interfaces;
+using Sibers.Core.Services;
+
+namespace Sibers.Tests;
+
+public class EmployeeServiceTests
+{
+    private readonly Mock<IEmployeeRepository> _employeeRepoMock = new();
+    private readonly EmployeeService _service;
+
+    public EmployeeServiceTests()
+    {
+        _service = new EmployeeService(_employeeRepoMock.Object);
+    }
+
+    [Fact]
+    public async Task GetAllEmployeesAsync_ShouldReturnMappedEmployees()
+    {
+        var employees = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "Alice", LastName = "Smith", Email = "alice@sibers.com" },
+            new() { Id = 2, FirstName = "Bob", LastName = "Jones", Email = "bob@sibers.com" }
+        };
+
+        _employeeRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(employees);
+
+        var result = await _service.GetAllEmployeesAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Smith Alice", result[0].FullName);
+        Assert.Equal("Jones Bob", result[1].FullName);
+    }
+
+    [Fact]
+    public async Task SearchEmployeesAsync_ShouldReturnResultsFromRepository()
+    {
+        var employees = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "Alice", LastName = "Smith", Email = "alice@sibers.com" }
+        };
+
+        _employeeRepoMock.Setup(r => r.SearchEmployeesAsync("ali")).ReturnsAsync(employees);
+
+        var result = await _service.SearchEmployeesAsync("ali");
+
+        Assert.Single(result);
+        Assert.Equal("Alice", result[0].FirstName);
+    }
+
+    [Fact]
+    public async Task GetEmployeeByIdAsync_ShouldReturnEmployee_WhenExists()
+    {
+        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith", Email = "alice@sibers.com" };
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(employee);
+
+        var result = await _service.GetEmployeeByIdAsync(1);
+
+        Assert.NotNull(result);
+        Assert.Equal("Smith Alice", result!.FullName);
+    }
+
+    [Fact]
+    public async Task GetEmployeeByIdAsync_ShouldReturnNull_WhenNotExists()
+    {
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((Employee?)null);
+
+        var result = await _service.GetEmployeeByIdAsync(999);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldNormalizeEmailAndTrimNames()
+    {
+        var dto = new CreateEmployeeDto
+        {
+            FirstName = "  Alice  ",
+            LastName = "  Smith  ",
+            MiddleName = "  Marie  ",
+            Email = "  Alice@Sibers.COM  "
+        };
+
+        Employee? captured = null;
+        _employeeRepoMock.Setup(r => r.AddAsync(It.IsAny<Employee>()))
+            .Callback<Employee>(e => captured = e)
+            .ReturnsAsync(new Employee { Id = 1 });
+
+        await _service.CreateEmployeeAsync(dto);
+
+        Assert.NotNull(captured);
+        Assert.Equal("Alice", captured!.FirstName);
+        Assert.Equal("Smith", captured.LastName);
+        Assert.Equal("Marie", captured.MiddleName);
+        Assert.Equal("alice@sibers.com", captured.Email);
+    }
+
+    [Fact]
+    public async Task CreateEmployeeAsync_ShouldSetMiddleNameToNull_WhenEmpty()
+    {
+        var dto = new CreateEmployeeDto
+        {
+            FirstName = "Alice",
+            LastName = "Smith",
+            MiddleName = "   ",
+            Email = "alice@sibers.com"
+        };
+
+        Employee? captured = null;
+        _employeeRepoMock.Setup(r => r.AddAsync(It.IsAny<Employee>()))
+            .Callback<Employee>(e => captured = e)
+            .ReturnsAsync(new Employee { Id = 1 });
+
+        await _service.CreateEmployeeAsync(dto);
+
+        Assert.NotNull(captured);
+        Assert.Null(captured!.MiddleName);
+    }
+
+    [Fact]
+    public async Task UpdateEmployeeAsync_ShouldThrowKeyNotFoundException_WhenEmployeeDoesNotExist()
+    {
+        var dto = new UpdateEmployeeDto
+        {
+            FirstName = "Alice",
+            LastName = "Smith",
+            Email = "alice@sibers.com"
+        };
+
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((Employee?)null);
+
+        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.UpdateEmployeeAsync(999, dto));
+        Assert.Contains("Employee with ID 999 was not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteEmployeeAsync_ShouldThrowKeyNotFoundException_WhenEmployeeDoesNotExist()
+    {
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(999)).ReturnsAsync((Employee?)null);
+
+        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.DeleteEmployeeAsync(999));
+        Assert.Contains("Employee with ID 999 was not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteEmployeeAsync_ShouldDelete_WhenEmployeeExists()
+    {
+        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith" };
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(employee);
+
+        await _service.DeleteEmployeeAsync(1);
+
+        _employeeRepoMock.Verify(r => r.DeleteAsync(employee), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetUserIdAsync_ShouldUpdateUserId_WhenEmployeeExists()
+    {
+        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith" };
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(employee);
+
+        await _service.SetUserIdAsync(1, "identity-user-id");
+
+        Assert.Equal("identity-user-id", employee.UserId);
+        _employeeRepoMock.Verify(r => r.UpdateAsync(employee), Times.Once);
+    }
+}

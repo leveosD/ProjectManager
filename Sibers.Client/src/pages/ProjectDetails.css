@@ -1,0 +1,127 @@
+.subtitle {
+  color: var(--text-muted);
+  margin: 0.75rem 0 0;
+  font-weight: 500;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.details-grid .card h3 {
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.member-list,
+.document-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.member-list li,
+.document-list li {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.member-list li:last-child,
+.document-list li:last-child {
+  border-bottom: none;
+}
+
+.member-email,
+.doc-size {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem;
+  background-color: #fffdf9;
+  border-radius: 6px;
+  border-left: 4px solid #c2a48d;
+  gap: 1rem;
+}
+
+.task-item.status-0 {
+  border-left-color: #8d6e63;
+}
+
+.task-item.status-1 {
+  border-left-color: #e67e22;
+}
+
+.task-item.status-2 {
+  border-left-color: #2e7d32;
+}
+
+.task-status {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background-color: #fdebd0;
+  color: #6e3b0b;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.task-executor {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.uploader-wrapper {
+  margin-top: 1rem;
+}
+
+.document-list a {
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.document-list a:hover {
+  color: var(--text-h);
+}
+
+@media (max-width: 600px) {
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .task-executor {
+    white-space: normal;
+  }
+}

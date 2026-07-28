@@ -1,0 +1,64 @@
+.task-edit-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.task-edit-container h2 {
+  margin-bottom: 1.5rem;
+  color: var(--text-h);
+}
+
+.form-actions {
+  margin-top: 1.5rem;
+}
+
+.form-actions .btn {
+  min-width: 140px;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.selection-info {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fdebd0;
+  border-radius: 6px;
+  border-left: 4px solid var(--primary);
+  color: var(--text-h);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-row-single {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.form-row-single .form-group {
+  max-width: 220px;
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row-single {
+    justify-items: stretch;
+  }
+
+  .form-row-single .form-group {
+    max-width: none;
+    text-align: left;
+  }
+}

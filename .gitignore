@@ -1,0 +1,50 @@
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# NuGet
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+# Rider / VS / IDE
+.idea/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Frontend
+Sibers.Client/node_modules/
+Sibers.Client/dist/
+Sibers.Client/dist-ssr/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.local
+
+# Database & uploaded files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+Sibers/Uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent / environment files
+.agents/
+skills-lock.json
+web-interface-guidelines.md
+Sibers/C-sharp.pdf
+
+# Audit / temporary markdown files
+Sibers/gemini-code-*.md
+gemini-code-*.md

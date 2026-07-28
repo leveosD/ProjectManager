@@ -1,0 +1,65 @@
+.employees-table-container {
+  overflow-x: auto;
+}
+
+.employees-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.employees-table th,
+.employees-table td {
+  padding: 0.85rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.employees-table th {
+  background-color: #fdefd8;
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.employees-table tr:hover {
+  background-color: #fff8ef;
+}
+
+.employee-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.employee-actions .btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  min-height: 36px;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .employees-table {
+    font-size: 0.9rem;
+  }
+
+  .employees-table th,
+  .employees-table td {
+    padding: 0.65rem 0.5rem;
+  }
+}
