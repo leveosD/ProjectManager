@@ -17,8 +17,7 @@ Sibers/
 ├── Sibers.Infrastructure  # EF Core DbContext, repositories, file storage, JWT auth service
 ├── Sibers                 # ASP.NET Core Web API host (controllers, Program.cs)
 ├── Sibers.Tests           # Unit tests for core business logic
-├── Sibers.Client          # React SPA frontend
-└── plans/                 # Implementation plan documentation
+└── Sibers.Client          # React SPA frontend
 ```
 
 ## Prerequisites
