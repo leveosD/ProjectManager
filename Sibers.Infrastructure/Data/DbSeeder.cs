@@ -71,7 +71,7 @@ public static class DbSeeder
                     UserId = user.Id
                 };
 
-                await employeeRepo.AddAsync(employee);
+                employeeRepo.Add(employee);
             }
         }
     }

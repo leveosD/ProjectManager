@@ -7,28 +7,43 @@ namespace Sibers.Core.Services;
 public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly IEmployeeAccountService _employeeAccountService;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public EmployeeService(IEmployeeRepository employeeRepository)
+    public EmployeeService(
+        IEmployeeRepository employeeRepository,
+        IEmployeeAccountService employeeAccountService,
+        IUnitOfWork unitOfWork)
     {
         _employeeRepository = employeeRepository;
+        _employeeAccountService = employeeAccountService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<List<EmployeeDto>> GetAllEmployeesAsync()
     {
         var employees = await _employeeRepository.GetAllAsync();
-        return employees.Select(MapToDto).ToList();
+        return await EnrichWithRolesAsync(employees);
     }
 
-    public async Task<List<EmployeeDto>> SearchEmployeesAsync(string? query)
+    public async Task<List<EmployeeDto>> SearchEmployeesAsync(string? query, string? roles = null)
     {
-        var employees = await _employeeRepository.SearchEmployeesAsync(query);
-        return employees.Select(MapToDto).ToList();
+        var roleList = ParseRoles(roles);
+        var employees = await _employeeRepository.SearchEmployeesAsync(query, roleList);
+        return await EnrichWithRolesAsync(employees);
     }
 
     public async Task<EmployeeDto?> GetEmployeeByIdAsync(int id)
     {
         var employee = await _employeeRepository.GetByIdAsync(id);
-        return employee == null ? null : MapToDto(employee);
+        if (employee == null)
+        {
+            return null;
+        }
+
+        var dto = MapToDto(employee);
+        dto.Role = await _employeeAccountService.GetRoleByEmployeeIdAsync(id);
+        return dto;
     }
 
     public async Task<Employee?> GetEmployeeByUserIdAsync(string userId)
@@ -36,48 +51,103 @@ public class EmployeeService : IEmployeeService
         return await _employeeRepository.GetByUserIdAsync(userId);
     }
 
-    public async Task<Employee> CreateEmployeeAsync(CreateEmployeeDto dto)
+    public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeDto dto)
     {
-        var employee = new Employee
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            FirstName = dto.FirstName.Trim(),
-            LastName = dto.LastName.Trim(),
-            MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim(),
-            Email = dto.Email.Trim().ToLower()
-        };
+            var employee = new Employee
+            {
+                FirstName = dto.FirstName.Trim(),
+                LastName = dto.LastName.Trim(),
+                MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim(),
+                Email = dto.Email.Trim().ToLower()
+            };
 
-        return await _employeeRepository.AddAsync(employee);
+            _employeeRepository.Add(employee);
+            await _unitOfWork.CommitTransactionAsync();
+
+            await _employeeAccountService.CreateAccountAsync(
+                employee.Id,
+                employee.Email,
+                dto.Password,
+                dto.Role);
+
+            var result = await GetEmployeeByIdAsync(employee.Id);
+            return result!;
+        });
     }
 
     public async Task<EmployeeDto> UpdateEmployeeAsync(int id, UpdateEmployeeDto dto)
     {
-        var employee = await _employeeRepository.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var employee = await _employeeRepository.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
 
-        employee.FirstName = dto.FirstName.Trim();
-        employee.LastName = dto.LastName.Trim();
-        employee.MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim();
-        employee.Email = dto.Email.Trim().ToLower();
+            employee.FirstName = dto.FirstName.Trim();
+            employee.LastName = dto.LastName.Trim();
+            employee.MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim();
+            employee.Email = dto.Email.Trim().ToLower();
 
-        await _employeeRepository.UpdateAsync(employee);
-        return MapToDto(employee);
+            _employeeRepository.Update(employee);
+
+            if (!string.IsNullOrWhiteSpace(dto.Role))
+            {
+                await _employeeAccountService.SetRoleByEmployeeIdAsync(id, dto.Role);
+            }
+
+            var result = await GetEmployeeByIdAsync(id);
+            return result!;
+        });
     }
 
     public async Task DeleteEmployeeAsync(int id)
     {
-        var employee = await _employeeRepository.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var employee = await _employeeRepository.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
 
-        await _employeeRepository.DeleteAsync(employee);
+            await _employeeAccountService.DeleteAccountByEmployeeIdAsync(id);
+            _employeeRepository.Delete(employee);
+        });
     }
 
     public async Task SetUserIdAsync(int employeeId, string userId)
     {
-        var employee = await _employeeRepository.GetByIdAsync(employeeId)
-            ?? throw new KeyNotFoundException($"Employee with ID {employeeId} was not found.");
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var employee = await _employeeRepository.GetByIdAsync(employeeId)
+                ?? throw new KeyNotFoundException($"Employee with ID {employeeId} was not found.");
 
-        employee.UserId = userId;
-        await _employeeRepository.UpdateAsync(employee);
+            employee.UserId = userId;
+            _employeeRepository.Update(employee);
+        });
+    }
+
+    private static IEnumerable<string>? ParseRoles(string? roles)
+    {
+        if (string.IsNullOrWhiteSpace(roles))
+        {
+            return null;
+        }
+
+        return roles
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .ToList();
+    }
+
+    private async Task<List<EmployeeDto>> EnrichWithRolesAsync(List<Employee> employees)
+    {
+        var dtos = new List<EmployeeDto>(employees.Count);
+        foreach (var employee in employees)
+        {
+            var dto = MapToDto(employee);
+            dto.Role = await _employeeAccountService.GetRoleByEmployeeIdAsync(employee.Id);
+            dtos.Add(dto);
+        }
+        return dtos;
     }
 
     private static EmployeeDto MapToDto(Employee e) => new()

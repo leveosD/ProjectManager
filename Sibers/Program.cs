@@ -118,7 +118,8 @@ builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 // Register Infrastructure Services
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IEmployeeRoleService, EmployeeRoleService>();
+builder.Services.AddScoped<IEmployeeAccountService, EmployeeAccountService>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Register Application Core Services
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
