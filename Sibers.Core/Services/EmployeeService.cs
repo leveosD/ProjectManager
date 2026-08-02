@@ -42,7 +42,7 @@ public class EmployeeService : IEmployeeService
         }
 
         var dto = MapToDto(employee);
-        dto.Role = await _employeeAccountService.GetRoleByEmployeeIdAsync(id);
+        dto.Role = await _employeeAccountService.GetRoleByUserIdAsync(employee.UserId);
         return dto;
     }
 
@@ -67,7 +67,6 @@ public class EmployeeService : IEmployeeService
             await _unitOfWork.CommitTransactionAsync();
 
             await _employeeAccountService.CreateAccountAsync(
-                employee.Id,
                 employee.Email,
                 dto.Password,
                 dto.Role);
@@ -93,7 +92,7 @@ public class EmployeeService : IEmployeeService
 
             if (!string.IsNullOrWhiteSpace(dto.Role))
             {
-                await _employeeAccountService.SetRoleByEmployeeIdAsync(id, dto.Role);
+                await _employeeAccountService.SetRoleByUserIdAsync(employee.UserId, dto.Role);
             }
 
             var result = await GetEmployeeByIdAsync(id);
@@ -108,7 +107,7 @@ public class EmployeeService : IEmployeeService
             var employee = await _employeeRepository.GetByIdAsync(id)
                 ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
 
-            await _employeeAccountService.DeleteAccountByEmployeeIdAsync(id);
+            await _employeeAccountService.DeleteAccountByUserIdAsync(employee.UserId);
             _employeeRepository.Delete(employee);
         });
     }
@@ -144,7 +143,7 @@ public class EmployeeService : IEmployeeService
         foreach (var employee in employees)
         {
             var dto = MapToDto(employee);
-            dto.Role = await _employeeAccountService.GetRoleByEmployeeIdAsync(employee.Id);
+            dto.Role = await _employeeAccountService.GetRoleByUserIdAsync(employee.UserId);
             dtos.Add(dto);
         }
         return dtos;

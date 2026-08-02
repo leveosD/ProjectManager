@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
+using Sibers.Core.Enums;
 using Sibers.Core.Interfaces;
 using Sibers.Infrastructure.Data;
 
@@ -31,7 +32,7 @@ public class ProjectRepository : IProjectRepository
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter)
+    public async Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter, string employeeId)
     {
         IQueryable<Project> query = _context.Projects
             .Include(p => p.ProjectManager)
@@ -71,6 +72,9 @@ public class ProjectRepository : IProjectRepository
                                      p.ExecutingCompany.ToLower().Contains(search));
         }
 
+        // Role-based filtering
+        query = ApplyRoleFilter(query, filter, employeeId);
+
         // Sorting
         query = (filter.SortBy?.ToLower()) switch
         {
@@ -84,30 +88,26 @@ public class ProjectRepository : IProjectRepository
         return await query.ToListAsync();
     }
 
-    public async Task<Project> AddAsync(Project project)
+    public void Add(Project project)
     {
         _context.Projects.Add(project);
-        await _context.SaveChangesAsync();
-        return project;
     }
 
-    public async Task UpdateAsync(Project project)
+    public void Update(Project project)
     {
         _context.Projects.Update(project);
-        await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(Project project)
+    public void Delete(Project project)
     {
         _context.Projects.Remove(project);
-        await _context.SaveChangesAsync();
     }
 
-    public async Task SetProjectEmployeesAsync(int projectId, List<int> employeeIds)
+    public void SetProjectEmployees(int projectId, List<int> employeeIds)
     {
-        var existingRelations = await _context.ProjectEmployees
+        var existingRelations = _context.ProjectEmployees
             .Where(pe => pe.ProjectId == projectId)
-            .ToListAsync();
+            .ToList();
 
         _context.ProjectEmployees.RemoveRange(existingRelations);
 
@@ -118,6 +118,35 @@ public class ProjectRepository : IProjectRepository
         });
 
         _context.ProjectEmployees.AddRange(newRelations);
-        await _context.SaveChangesAsync();
+    }
+
+    private IQueryable<Project> ApplyRoleFilter(IQueryable<Project> query, ProjectFilterDto filter, string employeeId)
+    {
+        if (string.IsNullOrWhiteSpace(filter.Role))
+        {
+            return query;
+        }
+
+        var role = filter.Role.Trim();
+
+        if (role.Equals(UserRoles.Director, StringComparison.OrdinalIgnoreCase))
+        {
+            return query;
+        }
+
+        if (!int.TryParse(employeeId, out var id))
+        {
+            return query.Where(_ => false);
+        }
+
+        if (role.Equals(UserRoles.ProjectManager, StringComparison.OrdinalIgnoreCase))
+        {
+            return query.Where(p =>
+                p.ProjectManagerId == id ||
+                p.ProjectEmployees.Any(pe => pe.EmployeeId == id));
+        }
+
+        // Default: Employee role sees only projects they are assigned to
+        return query.Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == id));
     }
 }

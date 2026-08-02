@@ -10,29 +10,20 @@ namespace Sibers.Infrastructure.Services;
 public class EmployeeAccountService : IEmployeeAccountService
 {
     private readonly UserManager<IdentityUser> _userManager;
-    private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly IEmployeeRepository _employeeRepository;
 
     public EmployeeAccountService(
-        UserManager<IdentityUser> userManager,
-        RoleManager<IdentityRole> roleManager,
-        IEmployeeRepository employeeRepository)
+        UserManager<IdentityUser> userManager)
     {
         _userManager = userManager;
-        _roleManager = roleManager;
-        _employeeRepository = employeeRepository;
     }
 
-    public async Task CreateAccountAsync(int employeeId, string email, string password, string? role)
+    public async Task<string> CreateAccountAsync(string email, string password, string? role)
     {
         var roleToAssign = !string.IsNullOrWhiteSpace(role) ? role : UserRoles.Employee;
         if (!UserRoles.All.Contains(roleToAssign))
         {
             throw new InvalidOperationException($"Role '{roleToAssign}' doesn't exist.");
         }
-
-        var employee = await _employeeRepository.GetByIdAsync(employeeId)
-            ?? throw new KeyNotFoundException($"Employee with ID {employeeId} was not found.");
 
         var existingUser = await _userManager.FindByEmailAsync(email);
         if (existingUser != null)
@@ -62,21 +53,15 @@ public class EmployeeAccountService : IEmployeeAccountService
             throw new InvalidOperationException($"Failed to assign role '{roleToAssign}': {errors}");
         }
 
-        employee.UserId = user.Id;
-        _employeeRepository.Update(employee);
+        return user.Id;
     }
 
-    public async Task DeleteAccountByEmployeeIdAsync(int employeeId)
+    public async Task DeleteAccountByUserIdAsync(string? userId)
     {
-        var employee = await _employeeRepository.GetByIdAsync(employeeId)
-            ?? throw new KeyNotFoundException($"Employee with ID {employeeId} was not found.");
-
-        if (string.IsNullOrWhiteSpace(employee.UserId))
-        {
-            return;
-        }
-
-        var user = await _userManager.FindByIdAsync(employee.UserId);
+        if(!string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is empty.");
+        
+        var user = await _userManager.FindByIdAsync(userId!);
         if (user == null)
         {
             return;
@@ -90,15 +75,12 @@ public class EmployeeAccountService : IEmployeeAccountService
         }
     }
 
-    public async Task<string?> GetRoleByEmployeeIdAsync(int employeeId)
+    public async Task<string?> GetRoleByUserIdAsync(string? userId)
     {
-        var employee = await _employeeRepository.GetByIdAsync(employeeId);
-        if (employee?.UserId == null)
-        {
+        if (!string.IsNullOrWhiteSpace(userId))
             return null;
-        }
-
-        var user = await _userManager.FindByIdAsync(employee.UserId);
+        
+        var user = await _userManager.FindByIdAsync(userId!);
         if (user == null)
         {
             return null;
@@ -108,17 +90,12 @@ public class EmployeeAccountService : IEmployeeAccountService
         return roles.FirstOrDefault();
     }
 
-    public async Task SetRoleByEmployeeIdAsync(int employeeId, string role)
+    public async Task SetRoleByUserIdAsync(string? userId, string role)
     {
-        var employee = await _employeeRepository.GetByIdAsync(employeeId)
-            ?? throw new KeyNotFoundException($"Employee with ID {employeeId} was not found.");
-
-        if (employee.UserId == null)
-        {
-            throw new InvalidOperationException("Cannot change role for an employee without a user account.");
-        }
-
-        var user = await _userManager.FindByIdAsync(employee.UserId)
+        if(!string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is empty.");
+        
+        var user = await _userManager.FindByIdAsync(userId!)
             ?? throw new InvalidOperationException("User account for this employee was not found.");
 
         var roleToAssign = !string.IsNullOrWhiteSpace(role) ? role : UserRoles.Employee;

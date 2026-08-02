@@ -4,7 +4,7 @@ namespace Sibers.Core.Interfaces;
 
 public interface IProjectService
 {
-    Task<List<ProjectDto>> GetProjectsAsync(ProjectFilterDto filter);
+    Task<List<ProjectDto>> GetProjectsAsync(ProjectFilterDto filter, string? employeeId);
     Task<ProjectDto?> GetProjectByIdAsync(int id);
     Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto);
     Task<ProjectDto> UpdateProjectAsync(int id, UpdateProjectDto dto);

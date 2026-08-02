@@ -21,27 +21,8 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ProjectDto>>> GetProjects([FromQuery] ProjectFilterDto filter)
     {
-        var projects = await _projectService.GetProjectsAsync(filter);
-
-        // Role restriction checks if needed:
-        // PM can view projects where PM or assigned
-        // Employee can view projects where assigned
-        if (User.IsInRole(UserRoles.ProjectManager))
-        {
-            var empClaim = User.FindFirst("EmployeeId")?.Value;
-            if (int.TryParse(empClaim, out var empId))
-            {
-                projects = projects.Where(p => p.ProjectManagerId == empId || p.Employees.Any(e => e.Id == empId)).ToList();
-            }
-        }
-        else if (User.IsInRole(UserRoles.Employee))
-        {
-            var empClaim = User.FindFirst("EmployeeId")?.Value;
-            if (int.TryParse(empClaim, out var empId))
-            {
-                projects = projects.Where(p => p.Employees.Any(e => e.Id == empId)).ToList();
-            }
-        }
+        var employeeId = User.FindFirst("EmployeeId")?.Value;
+        var projects = await _projectService.GetProjectsAsync(filter, employeeId);
 
         return Ok(projects);
     }

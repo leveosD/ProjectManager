@@ -1,3 +1,5 @@
+using Sibers.Core.Enums;
+
 namespace Sibers.Core.DTOs;
 
 public class ProjectDto
@@ -50,4 +52,5 @@ public class ProjectFilterDto
     public string? SearchTerm { get; set; }
     public string? SortBy { get; set; } // Name, StartDate, EndDate, Priority
     public bool SortDescending { get; set; } = false;
+    public string? Role { get; set; }
 }
