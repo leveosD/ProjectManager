@@ -86,14 +86,7 @@ public class DocumentService : IDocumentService
         _documentRepository.Delete(doc);
         await _unitOfWork.SaveChangesAsync();
         
-        try
-        {
-            await _fileStorageService.DeleteFileAsync(doc.StoredFileName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Document record deleted, but failed to delete physical file {FileName}", doc.StoredFileName);
-        }
+        await _fileStorageService.DeleteFileAsync(doc.StoredFileName);
     }
 
     private static ProjectDocumentDto MapToDto(ProjectDocument d) => new()

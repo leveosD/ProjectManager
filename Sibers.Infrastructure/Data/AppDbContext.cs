@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Sibers.Core.Entities;
+using Sibers.Core.Enums;
+using Sibers.Core.Interfaces;
+using Sibers.Infrastructure.Services;
 
 namespace Sibers.Infrastructure.Data;
 
@@ -10,8 +13,11 @@ namespace Sibers.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : IdentityDbContext<IdentityUser>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    private readonly ICurrentUserService _currentUserService;
+    
+    public AppDbContext(DbContextOptions<AppDbContext> options, CurrentUserService currentUserService) : base(options)
     {
+        _currentUserService = currentUserService;
     }
 
     public DbSet<Project> Projects => Set<Project>();
@@ -47,6 +53,18 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
                 .WithMany(e => e.ManagedProjects)
                 .HasForeignKey(p => p.ProjectManagerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasQueryFilter(p =>
+                _currentUserService.IsAuthenticated &&
+                (
+                    _currentUserService.Role == Core.Enums.UserRoles.Director ||
+
+                    (_currentUserService.Role == Core.Enums.UserRoles.ProjectManager ||
+                     _currentUserService.Role == Core.Enums.UserRoles.Employee) &&
+                    (p.ProjectManagerId == _currentUserService.EmployeeId || 
+                     p.ProjectEmployees.Any(pe => pe.EmployeeId == _currentUserService.EmployeeId))
+                )
+            );
         });
 
         // Configure ProjectTask relationships with Author and Executor
@@ -66,6 +84,22 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
                 .WithMany(e => e.ExecutedTasks)
                 .HasForeignKey(t => t.ExecutorId)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasQueryFilter(t =>
+                _currentUserService.IsAuthenticated &&
+                (
+                    _currentUserService.Role == Core.Enums.UserRoles.Director ||
+
+                    (_currentUserService.Role == Core.Enums.UserRoles.ProjectManager &&
+                     (t.Project.ProjectManagerId == _currentUserService.EmployeeId ||
+                      t.AuthorId == _currentUserService.EmployeeId ||
+                      t.ExecutorId == _currentUserService.EmployeeId)) ||
+
+                    (_currentUserService.Role == Core.Enums.UserRoles.Employee &&
+                     (t.AuthorId == _currentUserService.EmployeeId ||
+                      t.ExecutorId == _currentUserService.EmployeeId))
+                )
+            );
         });
 
         // Configure ProjectDocument relationship

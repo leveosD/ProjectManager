@@ -10,15 +10,18 @@ public class TaskService : ITaskService
     private readonly ITaskRepository _taskRepository;
     private readonly IProjectRepository _projectRepository;
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public TaskService(
         ITaskRepository taskRepository,
         IProjectRepository projectRepository,
-        IEmployeeRepository employeeRepository)
+        IEmployeeRepository employeeRepository,
+        IUnitOfWork unitOfWork)
     {
         _taskRepository = taskRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<List<ProjectTaskDto>> GetTasksAsync(ProjectTaskFilterDto filter)
@@ -57,8 +60,10 @@ public class TaskService : ITaskService
             ExecutorId = dto.ExecutorId
         };
 
-        var createdTask = await _taskRepository.AddAsync(task);
-        var fullTask = await _taskRepository.GetByIdWithDetailsAsync(createdTask.Id);
+        _taskRepository.Add(task);
+        await _unitOfWork.SaveChangesAsync();
+        
+        var fullTask = await _taskRepository.GetByIdWithDetailsAsync(task.Id);
         return MapToDto(fullTask!);
     }
 
@@ -81,7 +86,9 @@ public class TaskService : ITaskService
         task.Status = dto.Status;
         task.ExecutorId = dto.ExecutorId;
 
-        await _taskRepository.UpdateAsync(task);
+        _taskRepository.Update(task);
+        await _unitOfWork.SaveChangesAsync();
+        
         var fullTask = await _taskRepository.GetByIdWithDetailsAsync(id);
         return MapToDto(fullTask!);
     }
@@ -89,10 +96,12 @@ public class TaskService : ITaskService
     public async Task UpdateTaskStatusAsync(int id, ProjectTaskStatus status)
     {
         var task = await _taskRepository.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
+                   ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
         task.Status = status;
-        await _taskRepository.UpdateAsync(task);
+
+        _taskRepository.Update(task);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     public async Task AssignTaskExecutorAsync(int id, int? executorId)
@@ -109,7 +118,9 @@ public class TaskService : ITaskService
         }
 
         task.ExecutorId = executorId;
-        await _taskRepository.UpdateAsync(task);
+
+        _taskRepository.Update(task);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     public async Task DeleteTaskAsync(int id)
@@ -117,7 +128,8 @@ public class TaskService : ITaskService
         var task = await _taskRepository.GetByIdAsync(id)
             ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
-        await _taskRepository.DeleteAsync(task);
+        _taskRepository.Delete(task);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     private static void ValidateExecutorIsProjectMember(Project project, int executorId)

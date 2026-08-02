@@ -23,23 +23,9 @@ public class ProjectService : IProjectService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<List<ProjectDto>> GetProjectsAsync(ProjectFilterDto filter, string? employeeId)
+    public async Task<List<ProjectDto>> GetProjectsAsync(ProjectFilterDto filter)
     {
-        if (string.IsNullOrWhiteSpace(employeeId) || !int.TryParse(employeeId, out int id))
-        {
-            throw new ArgumentException("Invalid Employee ID.", nameof(employeeId));
-        }
-
-        var employee = await _employeeRepository.GetByIdAsync(id);
-        if (employee == null)
-        {
-            throw new KeyNotFoundException($"Employee with ID {id} was not found.");
-        }
-
-        filter.Role = await _employeeAccountService.GetRoleByUserIdAsync(employee.UserId);
-
-        var projects = await _projectRepository.GetFilteredProjectsAsync(filter, employeeId);
-    
+        var projects = await _projectRepository.GetFilteredProjectsAsync(filter);
         return projects.Select(MapToDto).ToList();
     }
 

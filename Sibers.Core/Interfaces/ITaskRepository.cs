@@ -8,7 +8,7 @@ public interface ITaskRepository
     Task<ProjectTask?> GetByIdAsync(int id);
     Task<ProjectTask?> GetByIdWithDetailsAsync(int id);
     Task<List<ProjectTask>> GetFilteredTasksAsync(ProjectTaskFilterDto filter);
-    Task<ProjectTask> AddAsync(ProjectTask task);
-    Task UpdateAsync(ProjectTask task);
-    Task DeleteAsync(ProjectTask task);
+    void Add(ProjectTask task);
+    void Update(ProjectTask task);
+    void Delete(ProjectTask task);
 }

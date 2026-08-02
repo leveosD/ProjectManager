@@ -35,7 +35,7 @@ public class TaskRepository : ITaskRepository
             .Include(t => t.Project)
             .Include(t => t.Author)
             .Include(t => t.Executor);
-
+        
         if (filter.ProjectId.HasValue)
         {
             query = query.Where(t => t.ProjectId == filter.ProjectId.Value);
@@ -55,7 +55,7 @@ public class TaskRepository : ITaskRepository
         {
             query = query.Where(t => t.ExecutorId == filter.ExecutorId.Value);
         }
-
+        
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
             var search = filter.SearchTerm.Trim().ToLower();
@@ -84,22 +84,9 @@ public class TaskRepository : ITaskRepository
         return await query.ToListAsync();
     }
 
-    public async Task<ProjectTask> AddAsync(ProjectTask task)
-    {
-        _context.Tasks.Add(task);
-        await _context.SaveChangesAsync();
-        return task;
-    }
+    public void Add(ProjectTask task) => _context.Tasks.Add(task);
 
-    public async Task UpdateAsync(ProjectTask task)
-    {
-        _context.Tasks.Update(task);
-        await _context.SaveChangesAsync();
-    }
+    public void Update(ProjectTask task) => _context.Tasks.Update(task);
 
-    public async Task DeleteAsync(ProjectTask task)
-    {
-        _context.Tasks.Remove(task);
-        await _context.SaveChangesAsync();
-    }
+    public void Delete(ProjectTask task) => _context.Tasks.Remove(task);
 }

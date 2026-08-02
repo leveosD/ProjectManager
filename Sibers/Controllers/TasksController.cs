@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sibers.Core.DTOs;
@@ -21,18 +22,15 @@ public class TasksController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ProjectTaskDto>>> GetTasks([FromQuery] ProjectTaskFilterDto filter)
     {
-        var tasks = await _taskService.GetTasksAsync(filter);
-
-        if (!User.IsInRole(UserRoles.Director))
+        try
         {
-            var empClaim = User.FindFirst("EmployeeId")?.Value;
-            if (int.TryParse(empClaim, out var empId))
-            {
-                tasks = tasks.Where(t => t.ExecutorId == empId || t.AuthorId == empId).ToList();
-            }
+            var tasks = await _taskService.GetTasksAsync(filter);
+            return Ok(tasks);
         }
-
-        return Ok(tasks);
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{id}")]

@@ -13,11 +13,23 @@ public class TaskServiceTests
     private readonly Mock<ITaskRepository> _taskRepoMock = new();
     private readonly Mock<IProjectRepository> _projectRepoMock = new();
     private readonly Mock<IEmployeeRepository> _employeeRepoMock = new();
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly TaskService _service;
 
     public TaskServiceTests()
     {
-        _service = new TaskService(_taskRepoMock.Object, _projectRepoMock.Object, _employeeRepoMock.Object);
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(action => action());
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectTaskDto>>>()))
+            .Returns<Func<Task<ProjectTaskDto>>>(action => action());
+
+        _service = new TaskService(
+            _taskRepoMock.Object,
+            _projectRepoMock.Object,
+            _employeeRepoMock.Object,
+            _unitOfWorkMock.Object);
     }
 
     [Fact]

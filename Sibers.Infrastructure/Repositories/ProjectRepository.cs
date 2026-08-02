@@ -26,18 +26,18 @@ public class ProjectRepository : IProjectRepository
         return await _context.Projects
             .Include(p => p.ProjectManager)
             .Include(p => p.ProjectEmployees)
-                .ThenInclude(pe => pe.Employee)
+            .ThenInclude(pe => pe.Employee)
             .Include(p => p.Documents)
             .Include(p => p.Tasks)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter, string employeeId)
+    public async Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter)
     {
         IQueryable<Project> query = _context.Projects
             .Include(p => p.ProjectManager)
             .Include(p => p.ProjectEmployees)
-                .ThenInclude(pe => pe.Employee)
+            .ThenInclude(pe => pe.Employee)
             .Include(p => p.Documents)
             .Include(p => p.Tasks);
 
@@ -72,16 +72,19 @@ public class ProjectRepository : IProjectRepository
                                      p.ExecutingCompany.ToLower().Contains(search));
         }
 
-        // Role-based filtering
-        query = ApplyRoleFilter(query, filter, employeeId);
-
         // Sorting
         query = (filter.SortBy?.ToLower()) switch
         {
             "name" => filter.SortDescending ? query.OrderByDescending(p => p.Name) : query.OrderBy(p => p.Name),
-            "startdate" => filter.SortDescending ? query.OrderByDescending(p => p.StartDate) : query.OrderBy(p => p.StartDate),
-            "enddate" => filter.SortDescending ? query.OrderByDescending(p => p.EndDate) : query.OrderBy(p => p.EndDate),
-            "priority" => filter.SortDescending ? query.OrderByDescending(p => p.Priority) : query.OrderBy(p => p.Priority),
+            "startdate" => filter.SortDescending
+                ? query.OrderByDescending(p => p.StartDate)
+                : query.OrderBy(p => p.StartDate),
+            "enddate" => filter.SortDescending
+                ? query.OrderByDescending(p => p.EndDate)
+                : query.OrderBy(p => p.EndDate),
+            "priority" => filter.SortDescending
+                ? query.OrderByDescending(p => p.Priority)
+                : query.OrderBy(p => p.Priority),
             _ => query.OrderByDescending(p => p.Priority) // Default sort by Priority descending
         };
 
@@ -118,35 +121,5 @@ public class ProjectRepository : IProjectRepository
         });
 
         _context.ProjectEmployees.AddRange(newRelations);
-    }
-
-    private IQueryable<Project> ApplyRoleFilter(IQueryable<Project> query, ProjectFilterDto filter, string employeeId)
-    {
-        if (string.IsNullOrWhiteSpace(filter.Role))
-        {
-            return query;
-        }
-
-        var role = filter.Role.Trim();
-
-        if (role.Equals(UserRoles.Director, StringComparison.OrdinalIgnoreCase))
-        {
-            return query;
-        }
-
-        if (!int.TryParse(employeeId, out var id))
-        {
-            return query.Where(_ => false);
-        }
-
-        if (role.Equals(UserRoles.ProjectManager, StringComparison.OrdinalIgnoreCase))
-        {
-            return query.Where(p =>
-                p.ProjectManagerId == id ||
-                p.ProjectEmployees.Any(pe => pe.EmployeeId == id));
-        }
-
-        // Default: Employee role sees only projects they are assigned to
-        return query.Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == id));
     }
 }

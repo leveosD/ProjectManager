@@ -21,9 +21,7 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ProjectDto>>> GetProjects([FromQuery] ProjectFilterDto filter)
     {
-        var employeeId = User.FindFirst("EmployeeId")?.Value;
-        var projects = await _projectService.GetProjectsAsync(filter, employeeId);
-
+        var projects = await _projectService.GetProjectsAsync(filter);
         return Ok(projects);
     }
 

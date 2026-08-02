@@ -7,7 +7,7 @@ public interface IProjectRepository
 {
     Task<Project?> GetByIdAsync(int id);
     Task<Project?> GetByIdWithDetailsAsync(int id);
-    Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter, string employeeId);
+    Task<List<Project>> GetFilteredProjectsAsync(ProjectFilterDto filter);
     void Add(Project project);
     void Update(Project project);
     void Delete(Project project);
