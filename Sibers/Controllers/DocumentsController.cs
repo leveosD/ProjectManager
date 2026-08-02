@@ -29,11 +29,6 @@ public class DocumentsController : ControllerBase
     [Authorize(Roles = $"{UserRoles.Director},{UserRoles.ProjectManager}")]
     public async Task<ActionResult<ProjectDocumentDto>> Upload(int projectId, IFormFile file)
     {
-        if (file == null || file.Length == 0)
-        {
-            return BadRequest(new { message = "No file was uploaded." });
-        }
-
         try
         {
             using var stream = file.OpenReadStream();

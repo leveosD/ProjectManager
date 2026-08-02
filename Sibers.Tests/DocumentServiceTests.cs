@@ -1,4 +1,5 @@
 using Moq;
+using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
 using Sibers.Core.Interfaces;
 using Sibers.Core.Services;
@@ -10,11 +11,23 @@ public class DocumentServiceTests
     private readonly Mock<IDocumentRepository> _documentRepoMock = new();
     private readonly Mock<IProjectRepository> _projectRepoMock = new();
     private readonly Mock<IFileStorageService> _fileStorageMock = new();
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly DocumentService _service;
 
     public DocumentServiceTests()
     {
-        _service = new DocumentService(_documentRepoMock.Object, _projectRepoMock.Object, _fileStorageMock.Object);
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns<Func<Task>>(action => action());
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectDocumentDto>>>()))
+            .Returns<Func<Task<ProjectDocumentDto>>>(action => action());
+
+        _service = new DocumentService(
+            _documentRepoMock.Object,
+            _projectRepoMock.Object,
+            _fileStorageMock.Object,
+            _unitOfWorkMock.Object);
     }
 
     [Fact]

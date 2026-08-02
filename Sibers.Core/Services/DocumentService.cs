@@ -9,15 +9,18 @@ public class DocumentService : IDocumentService
     private readonly IDocumentRepository _documentRepository;
     private readonly IProjectRepository _projectRepository;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IUnitOfWork _unitOfWork;
 
     public DocumentService(
         IDocumentRepository documentRepository,
         IProjectRepository projectRepository,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        IUnitOfWork unitOfWork)
     {
         _documentRepository = documentRepository;
         _projectRepository = projectRepository;
         _fileStorageService = fileStorageService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<List<ProjectDocumentDto>> GetProjectDocumentsAsync(int projectId)
@@ -33,6 +36,11 @@ public class DocumentService : IDocumentService
         string contentType,
         long fileSize)
     {
+        if (fileSize == 0)
+        {
+            throw new InvalidDataException("No file was uploaded.");
+        }
+
         var project = await _projectRepository.GetByIdAsync(projectId)
             ?? throw new KeyNotFoundException($"Project with ID {projectId} was not found.");
 
@@ -48,7 +56,8 @@ public class DocumentService : IDocumentService
             UploadedAt = DateTime.UtcNow
         };
 
-        var created = await _documentRepository.AddAsync(document);
+        var created = _documentRepository.Add(document);
+        await _unitOfWork.SaveChangesAsync(); 
         return MapToDto(created);
     }
 
@@ -72,10 +81,19 @@ public class DocumentService : IDocumentService
     public async Task DeleteDocumentAsync(int documentId)
     {
         var doc = await _documentRepository.GetByIdAsync(documentId)
-            ?? throw new KeyNotFoundException($"Document with ID {documentId} was not found.");
+                  ?? throw new KeyNotFoundException($"Document with ID {documentId} was not found.");
 
-        await _fileStorageService.DeleteFileAsync(doc.StoredFileName);
-        await _documentRepository.DeleteAsync(doc);
+        _documentRepository.Delete(doc);
+        await _unitOfWork.SaveChangesAsync();
+        
+        try
+        {
+            await _fileStorageService.DeleteFileAsync(doc.StoredFileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Document record deleted, but failed to delete physical file {FileName}", doc.StoredFileName);
+        }
     }
 
     private static ProjectDocumentDto MapToDto(ProjectDocument d) => new()

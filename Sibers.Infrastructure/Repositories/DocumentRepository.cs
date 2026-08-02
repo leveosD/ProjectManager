@@ -27,16 +27,14 @@ public class DocumentRepository : IDocumentRepository
             .ToListAsync();
     }
 
-    public async Task<ProjectDocument> AddAsync(ProjectDocument document)
+    public ProjectDocument Add(ProjectDocument document)
     {
         _context.Documents.Add(document);
-        await _context.SaveChangesAsync();
-        return document;
+        return  document;
     }
 
-    public async Task DeleteAsync(ProjectDocument document)
+    public void Delete(ProjectDocument document)
     {
         _context.Documents.Remove(document);
-        await _context.SaveChangesAsync();
     }
 }
