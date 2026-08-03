@@ -13,10 +13,12 @@ namespace Sibers.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ITaskService _taskService;
+    private readonly ILogger<TasksController> _logger;
 
-    public TasksController(ITaskService taskService)
+    public TasksController(ITaskService taskService, ILogger<TasksController> logger)
     {
         _taskService = taskService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -48,6 +50,10 @@ public class TasksController : ControllerBase
     [Authorize(Roles = $"{UserRoles.Director},{UserRoles.ProjectManager}")]
     public async Task<ActionResult<ProjectTaskDto>> Create([FromBody] CreateProjectTaskDto dto)
     {
+        _logger.LogInformation(
+            "CreateTask request received: Title={Title}, ProjectId={ProjectId}, AuthorId={AuthorId}, ExecutorId={ExecutorId}",
+            dto?.Title, dto?.ProjectId, dto?.AuthorId, dto?.ExecutorId);
+
         try
         {
             var created = await _taskService.CreateTaskAsync(dto);
@@ -55,10 +61,12 @@ public class TasksController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning(ex, "CreateTask failed: resource not found.");
             return NotFound(new { message = ex.Message });
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "CreateTask failed: {Message}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }

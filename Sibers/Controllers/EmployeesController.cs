@@ -12,10 +12,12 @@ namespace Sibers.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
+    private readonly ILogger<EmployeesController> _logger;
 
-    public EmployeesController(IEmployeeService employeeService)
+    public EmployeesController(IEmployeeService employeeService, ILogger<EmployeesController> logger)
     {
         _employeeService = employeeService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -78,6 +80,7 @@ public class EmployeesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Update employee {EmployeeId} failed: {Message}", id, ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -97,6 +100,7 @@ public class EmployeesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Delete employee {EmployeeId} failed: {Message}", id, ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
