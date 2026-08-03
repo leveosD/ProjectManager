@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { tasksApi, projectsApi } from '../api';
+import { taskService, projectService } from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import './TaskDetails.css';
 
@@ -25,11 +25,11 @@ const TaskDetails = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await tasksApi.getById(Number(id));
+      const data = await taskService.getById(Number(id));
       setTask(data);
       setStatus(String(data.status));
       try {
-        const projectData = await projectsApi.getById(data.projectId);
+        const projectData = await projectService.getById(data.projectId);
         setProject(projectData);
       } catch {
         setProject(null);
@@ -45,7 +45,7 @@ const TaskDetails = () => {
     const newStatus = e.target.value;
     setStatus(newStatus);
     try {
-      await tasksApi.updateStatus(task.id, parseInt(newStatus));
+      await taskService.updateStatus(task.id, parseInt(newStatus));
       loadTask();
     } catch (err) {
       setError(err.message || 'Failed to update task status.');
@@ -58,7 +58,7 @@ const TaskDetails = () => {
       return;
     }
     try {
-      await tasksApi.delete(task.id);
+      await taskService.delete(task.id);
       navigate('/tasks');
     } catch (err) {
       setError(err.message || 'Failed to delete task.');

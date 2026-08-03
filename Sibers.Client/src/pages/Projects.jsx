@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { projectsApi } from '../api';
+import { projectService } from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import './Projects.css';
 
@@ -51,7 +51,7 @@ const Projects = () => {
       setLoading(true);
     }
     try {
-      const data = await projectsApi.getAll(filter);
+      const data = await projectService.getAll(filter);
       setProjects(data);
     } catch (err) {
       setError(err.message || 'Failed to load projects.');
@@ -76,7 +76,7 @@ const Projects = () => {
     }
 
     try {
-      await projectsApi.delete(id);
+      await projectService.delete(id);
       loadProjects();
     } catch (err) {
       setError(err.message || 'Failed to delete project.');

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
@@ -14,22 +15,29 @@ public class TaskServiceTests
     private readonly Mock<IProjectRepository> _projectRepoMock = new();
     private readonly Mock<IEmployeeRepository> _employeeRepoMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
+    private readonly Mock<ILogger<TaskService>> _loggerMock = new();
     private readonly TaskService _service;
 
     public TaskServiceTests()
     {
         _unitOfWorkMock
-            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
-            .Returns<Func<Task>>(action => action());
-        _unitOfWorkMock
-            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectTaskDto>>>()))
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectTaskDto>>?>())!)
             .Returns<Func<Task<ProjectTaskDto>>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()!))
+            .Returns<Func<Task>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         _service = new TaskService(
             _taskRepoMock.Object,
             _projectRepoMock.Object,
             _employeeRepoMock.Object,
-            _unitOfWorkMock.Object);
+            _unitOfWorkMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
@@ -95,24 +103,23 @@ public class TaskServiceTests
         var author = new Employee { Id = 1, FirstName = "Alice", LastName = "Author" };
         var executor = new Employee { Id = 2, FirstName = "Bob", LastName = "Executor" };
 
-        var createdTask = new ProjectTask
-        {
-            Id = 101,
-            Title = dto.Title,
-            Priority = dto.Priority,
-            Status = dto.Status,
-            ProjectId = dto.ProjectId,
-            AuthorId = dto.AuthorId,
-            ExecutorId = dto.ExecutorId,
-            Project = project,
-            Author = author,
-            Executor = executor
-        };
-
         _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(5)).ReturnsAsync(project);
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(author);
-        _taskRepoMock.Setup(r => r.AddAsync(It.IsAny<ProjectTask>())).ReturnsAsync(createdTask);
-        _taskRepoMock.Setup(r => r.GetByIdWithDetailsAsync(101)).ReturnsAsync(createdTask);
+        _taskRepoMock.Setup(r => r.GetByIdWithDetailsAsync(101)).ReturnsAsync((ProjectTask?)null);
+
+        ProjectTask? captured = null;
+        _taskRepoMock.Setup(r => r.Add(It.IsAny<ProjectTask>()))
+            .Callback<ProjectTask>(t => captured = t);
+
+        _taskRepoMock.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = id;
+                }
+                return captured;
+            });
 
         // Act
         var result = await _service.CreateTaskAsync(dto);
@@ -141,7 +148,7 @@ public class TaskServiceTests
 
         // Assert
         Assert.Equal(ProjectTaskStatus.Done, task.Status);
-        _taskRepoMock.Verify(r => r.UpdateAsync(task), Times.Once);
+        _taskRepoMock.Verify(r => r.Update(task), Times.Once);
     }
 
     [Fact]
@@ -210,12 +217,23 @@ public class TaskServiceTests
             ProjectEmployees = new List<ProjectEmployee>()
         };
         var author = new Employee { Id = 1, FirstName = "Alice", LastName = "Author" };
-        var created = new ProjectTask { Id = 200, Title = dto.Title, ProjectId = 5, AuthorId = 1 };
 
         _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(5)).ReturnsAsync(project);
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(author);
-        _taskRepoMock.Setup(r => r.AddAsync(It.IsAny<ProjectTask>())).ReturnsAsync(created);
-        _taskRepoMock.Setup(r => r.GetByIdWithDetailsAsync(200)).ReturnsAsync(created);
+
+        ProjectTask? captured = null;
+        _taskRepoMock.Setup(r => r.Add(It.IsAny<ProjectTask>()))
+            .Callback<ProjectTask>(t => captured = t);
+
+        _taskRepoMock.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = id;
+                }
+                return captured;
+            });
 
         var result = await _service.CreateTaskAsync(dto);
 
@@ -240,7 +258,7 @@ public class TaskServiceTests
 
         await _service.DeleteTaskAsync(10);
 
-        _taskRepoMock.Verify(r => r.DeleteAsync(task), Times.Once);
+        _taskRepoMock.Verify(r => r.Delete(task), Times.Once);
     }
 
     [Fact]
@@ -270,7 +288,7 @@ public class TaskServiceTests
         await _service.AssignTaskExecutorAsync(10, 2);
 
         Assert.Equal(2, task.ExecutorId);
-        _taskRepoMock.Verify(r => r.UpdateAsync(task), Times.Once);
+        _taskRepoMock.Verify(r => r.Update(task), Times.Once);
     }
 
     [Fact]

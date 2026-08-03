@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
 using Sibers.Core.Interfaces;
@@ -9,15 +10,18 @@ public class EmployeeService : IEmployeeService
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IEmployeeAccountService _employeeAccountService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<EmployeeService> _logger;
 
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IEmployeeAccountService employeeAccountService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<EmployeeService> logger)
     {
         _employeeRepository = employeeRepository;
         _employeeAccountService = employeeAccountService;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<List<EmployeeDto>> GetAllEmployeesAsync()
@@ -53,23 +57,32 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeDto dto)
     {
+        _logger.LogInformation("CreateEmployeeAsync: email={Email}, role={Role}", dto.Email, dto.Role);
         return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
+            var userId = await _employeeAccountService.CreateAccountAsync(
+                dto.Email,
+                dto.Password,
+                dto.Role);
+            
+            _logger.LogInformation("CreateEmployeeAsync: created identity user id='{UserId}' for email={Email}", userId, dto.Email);
+
+            await _unitOfWork.SaveChangesAsync();
+            
             var employee = new Employee
             {
                 FirstName = dto.FirstName.Trim(),
                 LastName = dto.LastName.Trim(),
                 MiddleName = string.IsNullOrWhiteSpace(dto.MiddleName) ? null : dto.MiddleName.Trim(),
-                Email = dto.Email.Trim().ToLower()
+                Email = dto.Email.Trim().ToLower(),
+                UserId = userId
             };
-
+            
             _employeeRepository.Add(employee);
-            await _unitOfWork.CommitTransactionAsync();
 
-            await _employeeAccountService.CreateAccountAsync(
-                employee.Email,
-                dto.Password,
-                dto.Role);
+            await _unitOfWork.SaveChangesAsync();
+            
+            _logger.LogInformation("CreateEmployeeAsync: persisted employee {EmployeeId} with UserId='{UserId}'", employee.Id, employee.UserId);
 
             var result = await GetEmployeeByIdAsync(employee.Id);
             return result!;
@@ -78,10 +91,13 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto> UpdateEmployeeAsync(int id, UpdateEmployeeDto dto)
     {
+        _logger.LogInformation("UpdateEmployeeAsync start: id={EmployeeId}, email={Email}, role={Role}", id, dto.Email, dto.Role);
         return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             var employee = await _employeeRepository.GetByIdAsync(id)
                 ?? throw new KeyNotFoundException($"Employee with ID {id} was not found.");
+
+            _logger.LogInformation("Loaded employee {EmployeeId}: UserId='{UserId}', Email='{Email}'", employee.Id, employee.UserId, employee.Email);
 
             employee.FirstName = dto.FirstName.Trim();
             employee.LastName = dto.LastName.Trim();
@@ -92,8 +108,11 @@ public class EmployeeService : IEmployeeService
 
             if (!string.IsNullOrWhiteSpace(dto.Role))
             {
+                _logger.LogInformation("Calling SetRoleByUserIdAsync for employee {EmployeeId} with UserId='{UserId}' and role '{Role}'", employee.Id, employee.UserId, dto.Role);
                 await _employeeAccountService.SetRoleByUserIdAsync(employee.UserId, dto.Role);
             }
+            
+            await _unitOfWork.SaveChangesAsync();
 
             var result = await GetEmployeeByIdAsync(id);
             return result!;

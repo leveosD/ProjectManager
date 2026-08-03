@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { employeesApi } from '../api';
+import { employeeService } from '@infrastructure';
 import './EmployeeSearch.css';
 
 const EmployeeSearch = ({
@@ -54,8 +54,8 @@ const EmployeeSearch = ({
           : employeesProp;
       } else {
         results = searchQuery.trim()
-          ? await employeesApi.search(searchQuery, roleFilter)
-          : await employeesApi.getAll(roleFilter);
+          ? await employeeService.search(searchQuery, roleFilter)
+          : await employeeService.getAll(roleFilter);
       }
 
       if (roleFilter.length > 0) {

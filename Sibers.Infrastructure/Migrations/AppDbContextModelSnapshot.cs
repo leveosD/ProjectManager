@@ -217,23 +217,31 @@ namespace Sibers.Infrastructure.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LastName")
                         .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
+                        .HasMaxLength(450)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Employees");
                 });
@@ -246,6 +254,7 @@ namespace Sibers.Infrastructure.Migrations
 
                     b.Property<string>("CustomerCompany")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("EndDate")
@@ -253,10 +262,12 @@ namespace Sibers.Infrastructure.Migrations
 
                     b.Property<string>("ExecutingCompany")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Priority")
@@ -283,10 +294,12 @@ namespace Sibers.Infrastructure.Migrations
 
                     b.Property<string>("ContentType")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FileName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<long>("FileSize")
@@ -297,6 +310,7 @@ namespace Sibers.Infrastructure.Migrations
 
                     b.Property<string>("StoredFileName")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UploadedAt")
@@ -334,6 +348,7 @@ namespace Sibers.Infrastructure.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Comment")
+                        .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("ExecutorId")
@@ -345,11 +360,14 @@ namespace Sibers.Infrastructure.Migrations
                     b.Property<int>("ProjectId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

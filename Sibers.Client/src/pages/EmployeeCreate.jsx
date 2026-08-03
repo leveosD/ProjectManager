@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { employeesApi } from '../api';
+import { employeeService } from '@infrastructure';
 import './TaskEdit.css';
 
 const roleOptions = [
@@ -36,7 +36,7 @@ const EmployeeCreate = () => {
         role: role || null,
       };
 
-      await employeesApi.create(employeeData);
+      await employeeService.create(employeeData);
       navigate('/employees');
     } catch (err) {
       setError(err.message || 'Failed to create employee. Please try again.');

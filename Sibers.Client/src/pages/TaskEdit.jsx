@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeSearch from '../components/EmployeeSearch';
-import { tasksApi, projectsApi, employeesApi } from '../api';
+import {
+  taskService,
+  projectService,
+  employeeService,
+} from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import './TaskEdit.css';
 
@@ -52,7 +56,7 @@ const TaskEdit = () => {
     const loadTask = async () => {
       setLoading(true);
       try {
-        const task = await tasksApi.getById(Number(id));
+        const task = await taskService.getById(Number(id));
         if (cancelled) return;
 
         setTitle(task.title || '');
@@ -64,7 +68,7 @@ const TaskEdit = () => {
 
         if (task.executorId) {
           try {
-            const emp = await employeesApi.getById(task.executorId);
+            const emp = await employeeService.getById(task.executorId);
             if (!cancelled) {
               setExecutor(emp);
             }
@@ -92,7 +96,7 @@ const TaskEdit = () => {
 
   const loadProjects = async () => {
     try {
-      const data = await projectsApi.getAll({});
+      const data = await projectService.getAll({});
       setProjects(data);
     } catch {
       setProjects([]);
@@ -101,7 +105,7 @@ const TaskEdit = () => {
 
   const loadProjectTeam = async (pid) => {
     try {
-      const project = await projectsApi.getById(pid);
+      const project = await projectService.getById(pid);
       const team = project?.employees ?? [];
       // Include project manager as a possible executor
       if (project?.projectManagerId && project?.projectManagerName) {
@@ -147,9 +151,9 @@ const TaskEdit = () => {
       };
 
       if (isEditing) {
-        await tasksApi.update(Number(id), taskData);
+        await taskService.update(Number(id), taskData);
       } else {
-        await tasksApi.create({
+        await taskService.create({
           ...taskData,
           authorId: user?.employeeId ?? 0,
         });

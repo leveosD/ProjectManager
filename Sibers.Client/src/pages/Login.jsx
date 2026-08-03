@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../api';
+import { authService } from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -17,7 +17,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await authApi.login(email, password);
+      const response = await authService.login(email, password);
       login(response);
       navigate('/projects');
     } catch (err) {

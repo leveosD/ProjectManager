@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeSearch from '../components/EmployeeSearch';
 import FileUploader from '../components/FileUploader';
-import { projectsApi, documentsApi } from '../api';
+import {
+  projectService,
+  documentService,
+} from '@infrastructure';
 import './ProjectWizard.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -48,7 +51,7 @@ const ProjectWizard = () => {
     const loadProject = async () => {
       setLoading(true);
       try {
-        const project = await projectsApi.getById(Number(id));
+        const project = await projectService.getById(Number(id));
         if (cancelled) return;
 
         setFormData({
@@ -178,13 +181,13 @@ const ProjectWizard = () => {
       };
 
       const project = isEditing
-        ? await projectsApi.update(Number(id), projectData)
-        : await projectsApi.create(projectData);
+        ? await projectService.update(Number(id), projectData)
+        : await projectService.create(projectData);
 
       // Upload documents if any
       if (files.length > 0 && project?.id) {
         for (const file of files) {
-          await documentsApi.upload(project.id, file);
+          await documentService.upload(project.id, file);
         }
       }
 

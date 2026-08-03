@@ -17,11 +17,16 @@ public class DocumentServiceTests
     public DocumentServiceTests()
     {
         _unitOfWorkMock
-            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
-            .Returns<Func<Task>>(action => action());
-        _unitOfWorkMock
-            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectDocumentDto>>>()))
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectDocumentDto>>?>())!)
             .Returns<Func<Task<ProjectDocumentDto>>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()!))
+            .Returns<Func<Task>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         _service = new DocumentService(
             _documentRepoMock.Object,
@@ -72,20 +77,14 @@ public class DocumentServiceTests
     {
         var project = new Project { Id = 5, Name = "Sibers Portal" };
         var stream = new MemoryStream();
-        var createdDoc = new ProjectDocument
-        {
-            Id = 1,
-            ProjectId = 5,
-            FileName = "report.pdf",
-            StoredFileName = "stored-guid.pdf",
-            ContentType = "application/pdf",
-            FileSize = 2048,
-            UploadedAt = DateTime.UtcNow
-        };
 
         _projectRepoMock.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(project);
         _fileStorageMock.Setup(r => r.SaveFileAsync(stream, "report.pdf")).ReturnsAsync("stored-guid.pdf");
-        _documentRepoMock.Setup(r => r.AddAsync(It.IsAny<ProjectDocument>())).ReturnsAsync(createdDoc);
+
+        ProjectDocument? captured = null;
+        _documentRepoMock.Setup(r => r.Add(It.IsAny<ProjectDocument>()))
+            .Callback<ProjectDocument>(d => captured = d)
+            .Returns((ProjectDocument d) => d);
 
         var result = await _service.UploadDocumentAsync(5, stream, "report.pdf", "application/pdf", 2048);
 
@@ -172,6 +171,6 @@ public class DocumentServiceTests
         await _service.DeleteDocumentAsync(1);
 
         _fileStorageMock.Verify(r => r.DeleteFileAsync("stored.pdf"), Times.Once);
-        _documentRepoMock.Verify(r => r.DeleteAsync(doc), Times.Once);
+        _documentRepoMock.Verify(r => r.Delete(doc), Times.Once);
     }
 }

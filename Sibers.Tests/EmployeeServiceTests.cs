@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Moq;
 using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
@@ -11,6 +12,7 @@ public class EmployeeServiceTests
     private readonly Mock<IEmployeeRepository> _employeeRepoMock = new();
     private readonly Mock<IEmployeeAccountService> _employeeAccountServiceMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
+    private readonly Mock<ILogger<EmployeeService>> _loggerMock = new();
     private readonly EmployeeService _service;
 
     public EmployeeServiceTests()
@@ -24,13 +26,14 @@ public class EmployeeServiceTests
             .Returns<Func<Task>>(f => f());
 
         _unitOfWorkMock
-            .Setup(u => u.CommitTransactionAsync())
-            .Returns(Task.CompletedTask);
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         _service = new EmployeeService(
             _employeeRepoMock.Object,
             _employeeAccountServiceMock.Object,
-            _unitOfWorkMock.Object);
+            _unitOfWorkMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
@@ -44,7 +47,7 @@ public class EmployeeServiceTests
 
         _employeeRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(employees);
         _employeeAccountServiceMock
-            .Setup(s => s.GetRoleByEmployeeIdAsync(It.IsAny<int>()))
+            .Setup(s => s.GetRoleByUserIdAsync(It.IsAny<string?>()))
             .ReturnsAsync((string?)null);
 
         var result = await _service.GetAllEmployeesAsync();
@@ -64,7 +67,7 @@ public class EmployeeServiceTests
 
         _employeeRepoMock.Setup(r => r.SearchEmployeesAsync("ali", null)).ReturnsAsync(employees);
         _employeeAccountServiceMock
-            .Setup(s => s.GetRoleByEmployeeIdAsync(It.IsAny<int>()))
+            .Setup(s => s.GetRoleByUserIdAsync(It.IsAny<string?>()))
             .ReturnsAsync((string?)null);
 
         var result = await _service.SearchEmployeesAsync("ali");
@@ -76,9 +79,9 @@ public class EmployeeServiceTests
     [Fact]
     public async Task GetEmployeeByIdAsync_ShouldReturnEmployee_WhenExists()
     {
-        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith", Email = "alice@sibers.com" };
+        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith", Email = "alice@sibers.com", UserId = "user-1" };
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(employee);
-        _employeeAccountServiceMock.Setup(s => s.GetRoleByEmployeeIdAsync(1)).ReturnsAsync("Employee");
+        _employeeAccountServiceMock.Setup(s => s.GetRoleByUserIdAsync("user-1")).ReturnsAsync("Employee");
 
         var result = await _service.GetEmployeeByIdAsync(1);
 
@@ -106,7 +109,8 @@ public class EmployeeServiceTests
             LastName = "  Smith  ",
             MiddleName = "  Marie  ",
             Email = "  Alice@Sibers.COM  ",
-            Password = "password123"
+            Password = "password123",
+            Role = "Employee"
         };
 
         Employee? captured = null;
@@ -114,12 +118,15 @@ public class EmployeeServiceTests
             .Callback<Employee>(e => captured = e);
 
         _employeeAccountServiceMock
-            .Setup(s => s.CreateAccountAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .Setup(s => s.CreateAccountAsync(dto.Email, dto.Password, dto.Role))
+            .ReturnsAsync("user-id");
 
         _employeeAccountServiceMock
-            .Setup(s => s.GetRoleByEmployeeIdAsync(1))
+            .Setup(s => s.GetRoleByUserIdAsync("user-id"))
             .ReturnsAsync((string?)null);
+
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) => captured);
 
         await _service.CreateEmployeeAsync(dto);
 
@@ -139,7 +146,8 @@ public class EmployeeServiceTests
             LastName = "Smith",
             MiddleName = "   ",
             Email = "alice@sibers.com",
-            Password = "password123"
+            Password = "password123",
+            Role = "Employee"
         };
 
         Employee? captured = null;
@@ -147,12 +155,15 @@ public class EmployeeServiceTests
             .Callback<Employee>(e => captured = e);
 
         _employeeAccountServiceMock
-            .Setup(s => s.CreateAccountAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
-            .Returns(Task.CompletedTask);
+            .Setup(s => s.CreateAccountAsync(dto.Email, dto.Password, dto.Role))
+            .ReturnsAsync("user-id");
 
         _employeeAccountServiceMock
-            .Setup(s => s.GetRoleByEmployeeIdAsync(1))
+            .Setup(s => s.GetRoleByUserIdAsync("user-id"))
             .ReturnsAsync((string?)null);
+
+        _employeeRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) => captured);
 
         await _service.CreateEmployeeAsync(dto);
 
@@ -188,15 +199,15 @@ public class EmployeeServiceTests
     [Fact]
     public async Task DeleteEmployeeAsync_ShouldDelete_WhenEmployeeExists()
     {
-        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith" };
+        var employee = new Employee { Id = 1, FirstName = "Alice", LastName = "Smith", UserId = "user-1" };
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(employee);
         _employeeAccountServiceMock
-            .Setup(s => s.DeleteAccountByEmployeeIdAsync(1))
+            .Setup(s => s.DeleteAccountByUserIdAsync("user-1"))
             .Returns(Task.CompletedTask);
 
         await _service.DeleteEmployeeAsync(1);
 
-        _employeeAccountServiceMock.Verify(s => s.DeleteAccountByEmployeeIdAsync(1), Times.Once);
+        _employeeAccountServiceMock.Verify(s => s.DeleteAccountByUserIdAsync("user-1"), Times.Once);
         _employeeRepoMock.Verify(r => r.Delete(employee), Times.Once);
     }
 

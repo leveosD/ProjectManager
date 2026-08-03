@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../api';
+import { authService } from '@infrastructure';
 
 const AuthContext = createContext(null);
 
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await authApi.logout();
+      await authService.logout();
     } catch {
       // Ignore network errors on logout
     } finally {

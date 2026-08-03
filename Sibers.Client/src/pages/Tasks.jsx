@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { tasksApi, projectsApi } from '../api';
+import { taskService, projectService } from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import EmployeeSearch from '../components/EmployeeSearch';
 import './Tasks.css';
@@ -42,7 +42,7 @@ const Tasks = () => {
 
   const loadProjects = async () => {
     try {
-      const data = await projectsApi.getAll({});
+      const data = await projectService.getAll({});
       setProjects(data);
     } catch {
       setProjects([]);
@@ -52,7 +52,7 @@ const Tasks = () => {
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const data = await tasksApi.getAll(filter);
+      const data = await taskService.getAll(filter);
       setTasks(data);
     } catch (err) {
       setError(err.message || 'Failed to load tasks.');
@@ -98,7 +98,7 @@ const Tasks = () => {
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
-      await tasksApi.updateStatus(taskId, parseInt(newStatus));
+      await taskService.updateStatus(taskId, parseInt(newStatus));
       loadTasks();
     } catch (err) {
       setError(err.message || 'Failed to update task status.');
@@ -111,7 +111,7 @@ const Tasks = () => {
     }
 
     try {
-      await tasksApi.delete(id);
+      await taskService.delete(id);
       loadTasks();
     } catch (err) {
       setError(err.message || 'Failed to delete task.');

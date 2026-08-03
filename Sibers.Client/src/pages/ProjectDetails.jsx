@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { projectsApi, documentsApi, tasksApi } from '../api';
+import {
+  projectService,
+  documentService,
+  taskService,
+} from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import FileUploader from '../components/FileUploader';
 import './ProjectDetails.css';
@@ -43,7 +47,7 @@ const ProjectDetails = () => {
 
   const loadProject = async () => {
     try {
-      const data = await projectsApi.getById(id);
+      const data = await projectService.getById(id);
       setProject(data);
     } catch (err) {
       setError(err.message || 'Failed to load project.');
@@ -54,7 +58,7 @@ const ProjectDetails = () => {
 
   const loadTasks = async () => {
     try {
-      const data = await tasksApi.getAll({ projectId: id });
+      const data = await taskService.getAll({ projectId: id });
       setTasks(data);
     } catch {
       setTasks([]);
@@ -65,7 +69,7 @@ const ProjectDetails = () => {
     setUploading(true);
     try {
       for (const file of files) {
-        await documentsApi.upload(project.id, file);
+        await documentService.upload(project.id, file);
       }
       loadProject();
     } catch (err) {
@@ -81,7 +85,7 @@ const ProjectDetails = () => {
     }
 
     try {
-      await projectsApi.delete(id);
+      await projectService.delete(id);
       navigate('/projects');
     } catch (err) {
       setError(err.message || 'Failed to delete project.');
@@ -180,7 +184,7 @@ const ProjectDetails = () => {
             {project.documents.map((doc) => (
               <li key={doc.id}>
                 <a
-                  href={documentsApi.downloadUrl(doc.id)}
+                  href={documentService.downloadUrl(doc.id)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

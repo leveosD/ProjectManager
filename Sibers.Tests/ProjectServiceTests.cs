@@ -11,11 +11,29 @@ public class ProjectServiceTests
 {
     private readonly Mock<IProjectRepository> _projectRepoMock = new();
     private readonly Mock<IEmployeeRepository> _employeeRepoMock = new();
+    private readonly Mock<IEmployeeAccountService> _employeeAccountServiceMock = new();
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly ProjectService _service;
 
     public ProjectServiceTests()
     {
-        _service = new ProjectService(_projectRepoMock.Object, _employeeRepoMock.Object);
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task<ProjectDto>>?>())!)
+            .Returns<Func<Task<ProjectDto>>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()!))
+            .Returns<Func<Task>>(action => action());
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        _service = new ProjectService(
+            _projectRepoMock.Object,
+            _employeeRepoMock.Object,
+            _employeeAccountServiceMock.Object,
+            _unitOfWorkMock.Object);
     }
 
     [Fact]
@@ -90,8 +108,32 @@ public class ProjectServiceTests
         };
 
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(pmEmployee);
-        _projectRepoMock.Setup(r => r.AddAsync(It.IsAny<Project>())).ReturnsAsync(createdProject);
         _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(10)).ReturnsAsync(createdProject);
+
+        Project? captured = null;
+        _projectRepoMock.Setup(r => r.Add(It.IsAny<Project>()))
+            .Callback<Project>(p => captured = p);
+
+        _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = id;
+                }
+                return createdProject;
+            });
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Callback(() =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = 10;
+                }
+            })
+            .ReturnsAsync(1);
 
         // Act
         var result = await _service.CreateProjectAsync(dto);
@@ -100,7 +142,7 @@ public class ProjectServiceTests
         Assert.NotNull(result);
         Assert.Equal("New Web App", result.Name);
         Assert.Equal(10, result.Id);
-        _projectRepoMock.Verify(r => r.SetProjectEmployeesAsync(10, It.Is<List<int>>(list => list.Count == 3 && list.Contains(1) && list.Contains(2) && list.Contains(3))), Times.Once);
+        _projectRepoMock.Verify(r => r.SetProjectEmployees(10, It.Is<List<int>>(list => list.Count == 3 && list.Contains(1) && list.Contains(2) && list.Contains(3))), Times.Once);
     }
 
     [Fact]
@@ -142,7 +184,7 @@ public class ProjectServiceTests
 
         // Assert: team should contain new PM (2) and employee (3), but not old PM (1)
         _projectRepoMock.Verify(
-            r => r.SetProjectEmployeesAsync(
+            r => r.SetProjectEmployees(
                 10,
                 It.Is<List<int>>(list => list.Contains(2) && list.Contains(3) && !list.Contains(1))),
             Times.Once);
@@ -186,13 +228,37 @@ public class ProjectServiceTests
         var created = new Project { Id = 20, Name = dto.Name, ProjectManagerId = 1 };
 
         _employeeRepoMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(pm);
-        _projectRepoMock.Setup(r => r.AddAsync(It.IsAny<Project>())).ReturnsAsync(created);
         _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(20)).ReturnsAsync(created);
+
+        Project? captured = null;
+        _projectRepoMock.Setup(r => r.Add(It.IsAny<Project>()))
+            .Callback<Project>(p => captured = p);
+
+        _projectRepoMock.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<int>()))
+            .ReturnsAsync((int id) =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = id;
+                }
+                return created;
+            });
+
+        _unitOfWorkMock
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Callback(() =>
+            {
+                if (captured != null)
+                {
+                    captured.Id = 20;
+                }
+            })
+            .ReturnsAsync(1);
 
         var result = await _service.CreateProjectAsync(dto);
 
         Assert.NotNull(result);
-        _projectRepoMock.Verify(r => r.SetProjectEmployeesAsync(20, It.Is<List<int>>(list => list.Count == 1 && list.Contains(1))), Times.Once);
+        _projectRepoMock.Verify(r => r.SetProjectEmployees(20, It.Is<List<int>>(list => list.Count == 1 && list.Contains(1))), Times.Once);
     }
 
     [Fact]
@@ -249,7 +315,7 @@ public class ProjectServiceTests
 
         await _service.UpdateProjectAsync(10, dto);
 
-        _projectRepoMock.Verify(r => r.SetProjectEmployeesAsync(It.IsAny<int>(), It.IsAny<List<int>>()), Times.Never);
+        _projectRepoMock.Verify(r => r.SetProjectEmployees(It.IsAny<int>(), It.IsAny<List<int>>()), Times.Never);
     }
 
     [Fact]
@@ -270,7 +336,7 @@ public class ProjectServiceTests
         await _service.AddEmployeesToProjectAsync(5, new List<int> { 2, 3 });
 
         _projectRepoMock.Verify(
-            r => r.SetProjectEmployeesAsync(
+            r => r.SetProjectEmployees(
                 5,
                 It.Is<List<int>>(list => list.Count == 3 && list.Contains(1) && list.Contains(2) && list.Contains(3))),
             Times.Once);
@@ -294,7 +360,7 @@ public class ProjectServiceTests
         await _service.RemoveEmployeeFromProjectAsync(5, 2);
 
         _projectRepoMock.Verify(
-            r => r.SetProjectEmployeesAsync(
+            r => r.SetProjectEmployees(
                 5,
                 It.Is<List<int>>(list => list.Count == 1 && list.Contains(1))),
             Times.Once);

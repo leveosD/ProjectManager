@@ -56,7 +56,7 @@ public class ProjectService : IProjectService
             };
 
             _projectRepository.Add(project);
-            await _unitOfWork.CommitTransactionAsync(); // commit to generate project.Id
+            await _unitOfWork.SaveChangesAsync();
 
             var employeeIds = dto.EmployeeIds ?? new List<int>();
             if (!employeeIds.Contains(dto.ProjectManagerId))
@@ -67,6 +67,7 @@ public class ProjectService : IProjectService
             if (employeeIds.Count > 0)
             {
                 _projectRepository.SetProjectEmployees(project.Id, employeeIds);
+                await _unitOfWork.SaveChangesAsync();
             }
 
             var fullProject = await _projectRepository.GetByIdWithDetailsAsync(project.Id);
@@ -113,6 +114,8 @@ public class ProjectService : IProjectService
 
                 _projectRepository.SetProjectEmployees(id, employeeIds);
             }
+            
+            await _unitOfWork.SaveChangesAsync();
 
             var fullProject = await _projectRepository.GetByIdWithDetailsAsync(id);
             return MapToDto(fullProject!);

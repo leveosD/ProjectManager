@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Sibers.Core.Enums;
 using Sibers.Core.Interfaces;
 
@@ -10,11 +11,14 @@ namespace Sibers.Infrastructure.Services;
 public class EmployeeAccountService : IEmployeeAccountService
 {
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly ILogger<EmployeeAccountService> _logger;
 
     public EmployeeAccountService(
-        UserManager<IdentityUser> userManager)
+        UserManager<IdentityUser> userManager,
+        ILogger<EmployeeAccountService> logger)
     {
         _userManager = userManager;
+        _logger = logger;
     }
 
     public async Task<string> CreateAccountAsync(string email, string password, string? role)
@@ -53,12 +57,14 @@ public class EmployeeAccountService : IEmployeeAccountService
             throw new InvalidOperationException($"Failed to assign role '{roleToAssign}': {errors}");
         }
 
+        _logger.LogInformation("CreateAccountAsync: created user {UserId} for {Email} with role {Role}", user.Id, email, roleToAssign);
         return user.Id;
     }
 
     public async Task DeleteAccountByUserIdAsync(string? userId)
     {
-        if(!string.IsNullOrWhiteSpace(userId))
+        _logger.LogInformation("DeleteAccountByUserIdAsync called with userId='{UserId}'", userId);
+        if(string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("UserId is empty.");
         
         var user = await _userManager.FindByIdAsync(userId!);
@@ -77,7 +83,8 @@ public class EmployeeAccountService : IEmployeeAccountService
 
     public async Task<string?> GetRoleByUserIdAsync(string? userId)
     {
-        if (!string.IsNullOrWhiteSpace(userId))
+        _logger.LogInformation("GetRoleByUserIdAsync called with userId='{UserId}'", userId);
+        if (string.IsNullOrWhiteSpace(userId))
             return null;
         
         var user = await _userManager.FindByIdAsync(userId!);
@@ -92,7 +99,8 @@ public class EmployeeAccountService : IEmployeeAccountService
 
     public async Task SetRoleByUserIdAsync(string? userId, string role)
     {
-        if(!string.IsNullOrWhiteSpace(userId))
+        _logger.LogInformation("SetRoleByUserIdAsync called with userId='{UserId}', role='{Role}'", userId, role);
+        if(string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("UserId is empty.");
         
         var user = await _userManager.FindByIdAsync(userId!)
@@ -121,5 +129,7 @@ public class EmployeeAccountService : IEmployeeAccountService
             var errors = string.Join("; ", addResult.Errors.Select(e => e.Description));
             throw new InvalidOperationException($"Failed to assign role '{roleToAssign}': {errors}");
         }
+
+        _logger.LogInformation("SetRoleByUserIdAsync: assigned role {Role} to user {UserId}", roleToAssign, user.Id);
     }
 }

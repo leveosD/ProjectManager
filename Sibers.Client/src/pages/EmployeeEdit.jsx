@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { employeesApi } from '../api';
+import { employeeService } from '@infrastructure';
 import { useAuth } from '../context/AuthContext';
 import './TaskEdit.css';
 
@@ -29,7 +29,7 @@ const EmployeeEdit = () => {
     const loadEmployee = async () => {
       setLoading(true);
       try {
-        const employee = await employeesApi.getById(Number(id));
+        const employee = await employeeService.getById(Number(id));
         if (cancelled) return;
 
         setFirstName(employee.firstName || '');
@@ -69,7 +69,7 @@ const EmployeeEdit = () => {
         role: role || null,
       };
 
-      await employeesApi.update(Number(id), employeeData);
+      await employeeService.update(Number(id), employeeData);
       navigate('/employees');
     } catch (err) {
       setError(err.message || 'Failed to update employee. Please try again.');

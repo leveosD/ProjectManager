@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sibers.Core.DTOs;
 using Sibers.Core.Entities;
 using Sibers.Core.Enums;
@@ -11,17 +12,20 @@ public class TaskService : ITaskService
     private readonly IProjectRepository _projectRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<TaskService> _logger;
 
     public TaskService(
         ITaskRepository taskRepository,
         IProjectRepository projectRepository,
         IEmployeeRepository employeeRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<TaskService> logger)
     {
         _taskRepository = taskRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<List<ProjectTaskDto>> GetTasksAsync(ProjectTaskFilterDto filter)
@@ -38,98 +42,135 @@ public class TaskService : ITaskService
 
     public async Task<ProjectTaskDto> CreateTaskAsync(CreateProjectTaskDto dto)
     {
-        var project = await _projectRepository.GetByIdWithDetailsAsync(dto.ProjectId)
-            ?? throw new KeyNotFoundException($"Project with ID {dto.ProjectId} was not found.");
+        ArgumentNullException.ThrowIfNull(dto);
 
-        var author = await _employeeRepository.GetByIdAsync(dto.AuthorId)
-            ?? throw new ArgumentException($"Author employee with ID {dto.AuthorId} does not exist.");
+        _logger.LogInformation(
+            "Creating task: Title={Title}, ProjectId={ProjectId}, AuthorId={AuthorId}, ExecutorId={ExecutorId}",
+            dto.Title, dto.ProjectId, dto.AuthorId, dto.ExecutorId);
 
-        if (dto.ExecutorId.HasValue)
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            ValidateExecutorIsProjectMember(project, dto.ExecutorId.Value);
-        }
+            var project = await _projectRepository.GetByIdWithDetailsAsync(dto.ProjectId);
+            if (project == null)
+            {
+                _logger.LogWarning("Task creation failed: project {ProjectId} not found.", dto.ProjectId);
+                throw new KeyNotFoundException($"Project with ID {dto.ProjectId} was not found.");
+            }
 
-        var task = new ProjectTask
-        {
-            Title = dto.Title.Trim(),
-            Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim(),
-            Priority = dto.Priority,
-            Status = dto.Status,
-            ProjectId = dto.ProjectId,
-            AuthorId = dto.AuthorId,
-            ExecutorId = dto.ExecutorId
-        };
+            var author = await _employeeRepository.GetByIdAsync(dto.AuthorId);
+            if (author == null)
+            {
+                _logger.LogWarning("Task creation failed: author {AuthorId} not found.", dto.AuthorId);
+                throw new ArgumentException($"Author employee with ID {dto.AuthorId} does not exist.");
+            }
 
-        _taskRepository.Add(task);
-        await _unitOfWork.SaveChangesAsync();
-        
-        var fullTask = await _taskRepository.GetByIdWithDetailsAsync(task.Id);
-        return MapToDto(fullTask!);
+            if (dto.ExecutorId.HasValue)
+            {
+                _logger.LogInformation("Validating executor {ExecutorId} against project {ProjectId}.", dto.ExecutorId.Value, dto.ProjectId);
+                ValidateExecutorIsProjectMember(project, dto.ExecutorId.Value);
+            }
+
+            var task = new ProjectTask
+            {
+                Title = dto.Title.Trim(),
+                Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim(),
+                Priority = dto.Priority,
+                Status = dto.Status,
+                ProjectId = dto.ProjectId,
+                AuthorId = dto.AuthorId,
+                ExecutorId = dto.ExecutorId
+            };
+
+            _logger.LogInformation("Adding task to repository.");
+            _taskRepository.Add(task);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("Saving changes and retrieving task details for Id {TaskId}.", task.Id);
+            var fullTask = await _taskRepository.GetByIdWithDetailsAsync(task.Id);
+            if (fullTask == null)
+            {
+                _logger.LogError("Failed to retrieve created task details for Id {TaskId}.", task.Id);
+                throw new InvalidOperationException("Failed to retrieve created task details.");
+            }
+
+            _logger.LogInformation("Task created successfully with Id {TaskId}.", fullTask.Id);
+            return MapToDto(fullTask);
+        });
     }
 
     public async Task<ProjectTaskDto> UpdateTaskAsync(int id, UpdateProjectTaskDto dto)
     {
-        var task = await _taskRepository.GetByIdWithDetailsAsync(id)
-            ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
-
-        var project = await _projectRepository.GetByIdWithDetailsAsync(task.ProjectId)
-            ?? throw new KeyNotFoundException($"Associated project with ID {task.ProjectId} was not found.");
-
-        if (dto.ExecutorId.HasValue)
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            ValidateExecutorIsProjectMember(project, dto.ExecutorId.Value);
-        }
+            var task = await _taskRepository.GetByIdWithDetailsAsync(id)
+                       ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
-        task.Title = dto.Title.Trim();
-        task.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
-        task.Priority = dto.Priority;
-        task.Status = dto.Status;
-        task.ExecutorId = dto.ExecutorId;
+            var project = await _projectRepository.GetByIdWithDetailsAsync(task.ProjectId)
+                          ?? throw new KeyNotFoundException(
+                              $"Associated project with ID {task.ProjectId} was not found.");
 
-        _taskRepository.Update(task);
-        await _unitOfWork.SaveChangesAsync();
-        
-        var fullTask = await _taskRepository.GetByIdWithDetailsAsync(id);
-        return MapToDto(fullTask!);
+            if (dto.ExecutorId.HasValue)
+            {
+                ValidateExecutorIsProjectMember(project, dto.ExecutorId.Value);
+            }
+
+            task.Title = dto.Title.Trim();
+            task.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
+            task.Priority = dto.Priority;
+            task.Status = dto.Status;
+            task.ExecutorId = dto.ExecutorId;
+
+            _taskRepository.Update(task);
+
+            var fullTask = await _taskRepository.GetByIdWithDetailsAsync(id);
+            return MapToDto(fullTask!);
+        });
     }
 
     public async Task UpdateTaskStatusAsync(int id, ProjectTaskStatus status)
     {
-        var task = await _taskRepository.GetByIdAsync(id)
-                   ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var task = await _taskRepository.GetByIdAsync(id)
+                       ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
-        task.Status = status;
+            task.Status = status;
 
-        _taskRepository.Update(task);
-        await _unitOfWork.SaveChangesAsync();
+            _taskRepository.Update(task);
+        });
     }
 
     public async Task AssignTaskExecutorAsync(int id, int? executorId)
     {
-        var task = await _taskRepository.GetByIdWithDetailsAsync(id)
-            ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
-
-        if (executorId.HasValue)
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var project = await _projectRepository.GetByIdWithDetailsAsync(task.ProjectId)
-                ?? throw new KeyNotFoundException($"Associated project with ID {task.ProjectId} was not found.");
+            var task = await _taskRepository.GetByIdWithDetailsAsync(id)
+                       ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
-            ValidateExecutorIsProjectMember(project, executorId.Value);
-        }
+            if (executorId.HasValue)
+            {
+                var project = await _projectRepository.GetByIdWithDetailsAsync(task.ProjectId)
+                              ?? throw new KeyNotFoundException(
+                                  $"Associated project with ID {task.ProjectId} was not found.");
 
-        task.ExecutorId = executorId;
+                ValidateExecutorIsProjectMember(project, executorId.Value);
+            }
 
-        _taskRepository.Update(task);
-        await _unitOfWork.SaveChangesAsync();
+            task.ExecutorId = executorId;
+
+            _taskRepository.Update(task);
+        });
     }
 
     public async Task DeleteTaskAsync(int id)
     {
-        var task = await _taskRepository.GetByIdAsync(id)
-            ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var task = await _taskRepository.GetByIdAsync(id)
+                       ?? throw new KeyNotFoundException($"Task with ID {id} was not found.");
 
-        _taskRepository.Delete(task);
-        await _unitOfWork.SaveChangesAsync();
+            _taskRepository.Delete(task);
+        });
     }
 
     private static void ValidateExecutorIsProjectMember(Project project, int executorId)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { employeesApi } from '../api';
+import { employeeService } from '@infrastructure';
 import './Employees.css';
 
 const Employees = () => {
@@ -15,7 +15,7 @@ const Employees = () => {
   const loadEmployees = async () => {
     setLoading(true);
     try {
-      const data = await employeesApi.getAll();
+      const data = await employeeService.getAll();
       setEmployees(data);
     } catch (err) {
       setError(err.message || 'Failed to load employees.');
@@ -30,7 +30,7 @@ const Employees = () => {
     }
 
     try {
-      await employeesApi.delete(id);
+      await employeeService.delete(id);
       loadEmployees();
     } catch (err) {
       setError(err.message || 'Failed to delete employee.');

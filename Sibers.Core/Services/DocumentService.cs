@@ -36,29 +36,34 @@ public class DocumentService : IDocumentService
         string contentType,
         long fileSize)
     {
-        if (fileSize == 0)
+        return await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            throw new InvalidDataException("No file was uploaded.");
-        }
+            if (fileSize == 0)
+            {
+                throw new InvalidDataException("No file was uploaded.");
+            }
 
-        var project = await _projectRepository.GetByIdAsync(projectId)
-            ?? throw new KeyNotFoundException($"Project with ID {projectId} was not found.");
+            var project = await _projectRepository.GetByIdAsync(projectId)
+                          ?? throw new KeyNotFoundException($"Project with ID {projectId} was not found.");
 
-        var storedFileName = await _fileStorageService.SaveFileAsync(fileStream, fileName);
+            var storedFileName = await _fileStorageService.SaveFileAsync(fileStream, fileName);
 
-        var document = new ProjectDocument
-        {
-            ProjectId = projectId,
-            FileName = fileName,
-            StoredFileName = storedFileName,
-            ContentType = contentType,
-            FileSize = fileSize,
-            UploadedAt = DateTime.UtcNow
-        };
+            var document = new ProjectDocument
+            {
+                ProjectId = projectId,
+                FileName = fileName,
+                StoredFileName = storedFileName,
+                ContentType = contentType,
+                FileSize = fileSize,
+                UploadedAt = DateTime.UtcNow
+            };
 
-        var created = _documentRepository.Add(document);
-        await _unitOfWork.SaveChangesAsync(); 
-        return MapToDto(created);
+            _documentRepository.Add(document);
+            
+            await _unitOfWork.SaveChangesAsync();
+            
+            return MapToDto(document);
+        });
     }
 
     public async Task<(Stream stream, string contentType, string fileName)?> DownloadDocumentAsync(int documentId)
@@ -80,13 +85,29 @@ public class DocumentService : IDocumentService
 
     public async Task DeleteDocumentAsync(int documentId)
     {
-        var doc = await _documentRepository.GetByIdAsync(documentId)
-                  ?? throw new KeyNotFoundException($"Document with ID {documentId} was not found.");
+        string? storedFileNameToDelete = null;
 
-        _documentRepository.Delete(doc);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var doc = await _documentRepository.GetByIdAsync(documentId)
+                      ?? throw new KeyNotFoundException($"Document with ID {documentId} was not found.");
+
+            storedFileNameToDelete = doc.StoredFileName;
+
+            _documentRepository.Delete(doc);
+        }); 
         
-        await _fileStorageService.DeleteFileAsync(doc.StoredFileName);
+        if (!string.IsNullOrWhiteSpace(storedFileNameToDelete))
+        {
+            try
+            {
+                await _fileStorageService.DeleteFileAsync(storedFileNameToDelete);
+            }
+            catch
+            {
+                
+            }
+        }
     }
 
     private static ProjectDocumentDto MapToDto(ProjectDocument d) => new()
