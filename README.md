@@ -125,8 +125,3 @@ npm run build
 ```
 
 The production build is output to `Sibers.Client/dist`.
-
-## Notes
-
-- All C# code comments are written in English as required by the task specification.
-- Binary and build output folders (`bin`, `obj`, `node_modules`) are excluded from the delivery archive.
